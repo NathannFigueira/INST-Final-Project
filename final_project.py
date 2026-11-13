@@ -175,6 +175,8 @@ class TaskCompletion:
             inventory[item] = inventory.get(item, 0) + amount
 
         return True
+        
+# ------------------ Crafting (Akhila) ------------------
 
 def crafting(points, skill_level, items, item_desired):
     """
