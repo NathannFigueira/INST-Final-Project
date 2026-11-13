@@ -176,3 +176,139 @@ class TaskCompletion:
 
         return True
 
+# ------------- Player status and health (Bohan) -------------
+import json;
+def load_player(path):
+    """
+    Load effect and state rules from the data file.
+
+    Args:
+        path (str): path to a JSON file with an "effects" dict and a
+            "states" dict.
+
+    Returns:
+        dict: the parsed rules.
+    """
+    with open (path ,"r", encoding="UTF-8" ) as f:
+        return json.load(f)
+
+class Health:
+    """
+    Stores the player's health and stamina and their maximums.
+    Values are always kept between 0 and the maximum. Only this class
+    changes the numbers; everything else goes through apply_changes().
+    """
+
+    def __init__(self, max_health=100, max_stamina=100):
+        self.max_health = max_health
+        self.max_stamina = max_stamina
+        self.health = max_health
+        self.stamina = max_stamina
+
+    def current(self, value, maximum):
+        return max(0, min(value, maximum))
+
+    def change_health(self, health_change = 0, stamina_change = 0):
+        old_health = self.health
+        old_stamina = self.stamina
+        self.health = self.current(self.health + health_change, self.max_health)
+        self.stamina = self.current(self.stamina + stamina_change, self.max_stamina)
+        return self.health - old_health, self.stamina - old_stamina
+
+    def _is_dead(self):
+        return self.health ==0
+
+    def __str__(self):
+        return (f"HP {self.health}/{self.max_health} | "
+                f"Stamina {self.stamina}/{self.max_stamina}")
+
+
+
+
+class Status:
+    """
+    Tracks every buff/debuff and state on the player (poisoned, exhausted...).
+    Holds a Health object and changes it only through Health's methods.
+    All effects and thresholds come from the data file.
+    """
+
+    def __init__ (self, health_obj, data):
+        self.health_obj = health_obj
+        self.effect_rules = data["effects"]
+        self.state_rules = data["states"]
+        self.effects = {}     # name -> {"turns": turns left, "stacks": stacks}
+        self.states = set()
+
+    def take_turn(self, new_effects):
+        """
+        Run one turn of effects.
+
+        Args:
+            new_effects (list of str): names of the effects caused by this
+                turn's action, e.g. ["poisoned", "crafting_cost"].
+
+        Returns:
+            dict: how much health and stamina changed, which effects
+                started and ended, and whether health reached 0.
+
+        Side effects:
+            Updates this Status's effects and states, and changes health
+            and stamina through Health.apply_changes().
+        """
+        # 1. Save current health, stamina, and effect names
+        start_names = set(self.effects) | self.states
+        start_health = self.health_obj.health
+        start_stamina = self.health_obj.stamina
+
+        # 2. Add new effects
+        for name in new_effects:
+            rule = self.effect_rules[name]
+            for other in rule["cancels"]:
+                self.effects.pop(other, None)
+            if name not in self.effects:
+                self.effects[name] = {"turns": rule["duration"], "stacks": 1}
+            elif rule["on_repeat"] == "reset":
+                self.effects[name]["turns"] = rule["duration"]
+            elif rule["on_repeat"] == "stack":
+                self.effects[name]["stacks"] += 1
+            # "nothing": leave it as it is
+        middle_names = set(self.effects) | self.states
+
+        # 3. Add up all changes, then send the totals to Health in one call
+        health_total = 0
+        stamina_total = 0
+        for name, info in self.effects.items():
+            health_total += self.effect_rules[name]["health"] * info["stacks"]
+            stamina_total += self.effect_rules[name]["stamina"] * info["stacks"]
+        for state in self.states:
+            health_total += self.state_rules[state]["health"]
+            stamina_total += self.state_rules[state]["stamina"]
+        self.health_obj.apply_changes(health_total, stamina_total)
+
+        # 4. Check thresholds (new states only start working next turn)
+        for state, rule in self.state_rules.items():
+            value = (self.health_obj.health if rule["stat"] == "health"
+                     else self.health_obj.stamina)
+            if value < rule["below"]:
+                self.states.add(state)
+            else:
+                self.states.discard(state)
+
+        # 5. Count down every effect and remove the ones that ran out
+        for name in list(self.effects):
+            self.effects[name]["turns"] -= 1
+            if self.effects[name]["turns"] == 0:
+                del self.effects[name]
+        end_names = set(self.effects) | self.states
+
+        # 6. Set operations: which effects started and which ended
+        started = (middle_names | end_names) - start_names
+        ended = (start_names | middle_names) - end_names
+
+        return {
+            "health_change": self.health_obj.health - start_health,
+            "stamina_change": self.health_obj.stamina - start_stamina,
+            "started": started,
+            "ended": ended,
+            "health_zero": self.health_obj.is_dead(),
+        }
