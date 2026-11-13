@@ -74,7 +74,7 @@ def dialogue_and_choice(dialogue_options,choice,player):
     #NPC response
     return option["response"], option["task"]
 
-# ------------- Task Completion Below (Justin) -------------
+# ------------- Task Completion (Justin) -------------
 
 class TaskCompletion:
     """
@@ -176,4 +176,3 @@ class TaskCompletion:
 
         return True
 
-# 
