@@ -1,3 +1,4 @@
+# ------------- Decision Making (Nathan) -------------
 class Task:
     """Mock task class"""
     def init__(self,name,description,progress=False):
@@ -72,3 +73,107 @@ def dialogue_and_choice(dialogue_options,choice,player):
             dialogue_options[key]["avaiable"]=False
     #NPC response
     return option["response"], option["task"]
+
+# ------------- Task Completion Below (Justin) -------------
+
+class TaskCompletion:
+    """
+    Handle task and mission completion.
+
+    Checks player requirements, tracks completed missions,
+    removes required items, and distributes rewards.
+    """
+
+    def __init__(self):
+        """Initializes the task completion system."""
+        self.completed_tasks = set()
+
+    def complete_task(self, task_name, character, task_requirements, task_rewards):
+        """
+        Will attempt to complete a task based on player requirements.
+
+        Args:
+            task_name (str): Name of the task or mission.
+            character (dict): Dictionary containing player
+                level, skills, and inventory.
+            task_requirements (dict): Requirements needed to
+                complete the task.
+            task_rewards (dict): Rewards received after
+                successfully completing the task.
+
+        Returns:
+            bool: True if the task is completed.
+                  False if requirements are not met.
+
+        Side Effects:
+            Updates player progression, awards rewards,
+            and removes required items when necessary.
+        """
+
+        # Check if the task was already completed.
+        if task_name in self.completed_tasks:
+            return False
+
+        # Get player information.
+        level = character.get("level", 0)
+        skills = character.get("skills", {})
+        inventory = character.get("inventory", {})
+
+        # Check required player level.
+        required_level = task_requirements.get("level", 0)
+
+        if level < required_level:
+            return False
+
+        # Check required skills.
+        required_skills = task_requirements.get("skills", {})
+
+        for skill, amount in required_skills.items():
+            if skills.get(skill, 0) < amount:
+                return False
+
+        # Check required inventory items.
+        required_items = task_requirements.get("items", {})
+
+        for item, amount in required_items.items():
+            if inventory.get(item, 0) < amount:
+                return False
+
+        # Check prerequisite missions.
+        prerequisites = task_requirements.get(
+            "prerequisite_tasks", []
+        )
+
+        for task in prerequisites:
+            if task not in self.completed_tasks:
+                return False
+
+        # Remove required items if necessary.
+        if task_requirements.get("consume_items", False):
+            for item, amount in required_items.items():
+                inventory[item] -= amount
+
+                if inventory[item] == 0:
+                    del inventory[item]
+
+        # Mark the task as completed.
+        self.completed_tasks.add(task_name)
+
+        # Award experience points and gold.
+        character["xp"] = (
+            character.get("xp", 0) + task_rewards.get("xp", 0)
+        )
+
+        character["gold"] = (
+            character.get("gold", 0) + task_rewards.get("gold", 0)
+        )
+
+        # Add reward items to the player's inventory.
+        reward_items = task_rewards.get("items", {})
+
+        for item, amount in reward_items.items():
+            inventory[item] = inventory.get(item, 0) + amount
+
+        return True
+
+# 
