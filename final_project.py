@@ -178,74 +178,104 @@ class TaskCompletion:
         
 # ------------------ Crafting (Akhila) ------------------
     
-    def crafting(points, skill_level, items, item_desired):
+    def crafting(skill_level, items, item_desired, item_skill_level, item_material):
     """
     Checks if the player has enough skill level and points to craft new objects,
     weapons, and survival necessities, and adds them to their inventory to 
-    be used in the game and regulates the points and skill level of the player
-    depending on what they are trying to unlock from the inventory.
+    be used in the game. Ensures player has right amount of materials to 
+    build the items they need to level up.
 
     Args:
-        points (int)- current point count for player
         skill_level (int)- current skill level
-        items (dict)- items a player has
-        item_desired (string)- name of object wanted by player
+        items (dict)- items a player has and the material
+        item_desired(string)- name of item wanted
+        item_skill_level(dict)- skill level needed to start crafting
+        item_material(dict)- material needed for each craft
 
     Returns:
         Boolean- True if the crafting was successful and false if the craft 
         could not be done
 
     Side effects:
-        Adds items to the dictionary if the player was able to gain any item
+        Adds or removes items from the dictionary if the player was 
+        able to gain or use any item and it's materials
 
     """
-    
-    item_skill_level = {
-        "sword": 3,
-        "bomb": 6,
-        "axe": 2,
-        "hammer": 3,
-        "gun": 5,
-        "apple": 1,
-        "meat": 3,
-        "blanket": 1,
-        "firewood": 2,
-        "water": 1,
-        "flashlight": 2
-    }
-    
-    item_point_level = {
-        "sword": 15,
-        "bomb": 20,
-        "axe": 10,
-        "hammer": 7,
-        "gun": 17,
-        "apple": 2,
-        "meat": 8,
-        "blanket": 5,
-        "firewood": 7,
-        "water": 2,
-        "flashlight": 4
-    }
     
     if item_desired not in item_skill_level:
         return False
     
-    if skill_level >= item_skill_level[item_desired] and \
-        points >= item_point_level[item_desired]:
-            
-        items[item_desired] = items.get(item_desired,0) + 1
-        
-        points -= item_point_level[item_desired]
-        
-        return True
-    
-    else:
+    if skill_level < item_skill_level[item_desired]:
         if skill_level > 0:
             skill_level -= 1
-
         return False
     
+    for material, requirments in item_material:
+        if items.get(material, 0) < requirments[item_desired]:
+            return False
+    
+    for material, requirments in item_material:
+        items[material] -= requirments[item_desired]
+
+        if items[material] == 0:
+            del items[material]
+
+
+    items[item_desired] = items.get(item_desired,0) + 1
+                
+    return True
+
+if __name__ == "__main__":
+
+    item_skill_level = {
+        "sword": 4,
+        "axe": 2,
+        "hammer": 3,
+        "bomb": 6
+    }
+
+    material_metal = {
+        "sword": 3,
+        "axe": 2,
+        "hammer": 4,
+        "bomb": 1
+    }
+
+    material_leather = {
+        "sword": 0,
+        "axe": 1,
+        "hammer": 0,
+        "bomb": 2
+    }
+
+    material_stone = {
+        "sword": 1,
+        "axe": 2,
+        "hammer": 2,
+        "bomb": 3
+    }
+    material_wood = {
+        "sword": 0,
+        "axe": 2,
+        "hammer": 2,
+        "bomb": 1
+    }
+
+    item_materials = [
+        ("metal", material_metal),
+        ("leather", material_leather),
+        ("stone", material_stone),
+        ("wood", material_wood)
+    ]
+
+    skill_level = 3
+    
+    items = {"wood": 3,"stone": 3, "metal": 4, "leather": 2}
+
+    success = crafting(skill_level, items, "sword", 
+                       item_skill_level, item_materials)
+    
+    print(success)  
 
 # ------------- Player status and health (Bohan) -------------
 import json;
