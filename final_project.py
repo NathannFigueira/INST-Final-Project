@@ -383,3 +383,68 @@ class Status:
             "ended": ended,
             "health_zero": self.health_obj.is_dead(),
         }
+
+# ------------- Character Progression (Kasra) -------------
+
+class SkillPlayer:
+    """Mock player class used only to test train_skill.
+
+    Stands in for the real Player class until it is built. It holds
+    only the attributes train_skill needs, so it doesn't conflict with
+    the Player mock used by other functions in this file.
+    """
+    def __init__(self, skill_levels, skill_xp):
+        self.skill_levels = skill_levels
+        self.skill_xp = skill_xp
+
+def character_progression(player, skill_name,xp_amount, skill_xp_needed):
+    """Handles how a player gains experience in a skill and levels up that
+    skill when enough experience is earned.
+
+    Args:
+        player (SkillPlayer): the player whose skill is being trained.
+            Must have skill_levels and skill_xp attributes.
+        skill_name (str): name of the skill being trained.
+        xp_amount (int): how much XP was earned.
+        skill_xp_needed (dict of str: list of int): a dictionary where the
+            keys are skill names and the values are lists of the total XP
+            needed to reach each level of that skill. Index 0 is level 1,
+            index 1 is level 2, and so on. The length of the list is the
+            skill's max level.
+
+    Returns:
+        int: the number of levels skill_name gained. Returns 0 if no
+        levels were gained.
+
+    Side effects:
+        Changes the amount of XP stored for skill_name in the player's
+        skill_xp, and increases the level of skill_name in the player's
+        skill_levels for each level gained.
+    """
+    
+    player.skill_xp[skill_name] = player.skill_xp.get(skill_name, 0) + xp_amount
+    
+    thresholds = skill_xp_needed[skill_name]
+    
+    current_lvl = player.skill_levels.get(skill_name, 1)
+    
+    levels_gained = 0
+    
+    while current_lvl < len(thresholds):
+        
+        if player.skill_xp[skill_name] >= thresholds[current_lvl]:
+            current_lvl += 1
+            player.skill_levels[skill_name] = current_lvl
+            levels_gained += 1
+            
+        else:
+            break
+    
+    return levels_gained
+    
+
+if __name__ == "__main__":
+    skill_xp_needed = {"archery": [0, 50, 150], "alchemy": [0, 40, 100]}
+    player = SkillPlayer({"archery": 1, "alchemy": 1}, {"archery": 0, "alchemy": 0})
+    character_progression(player, "archery", 60, skill_xp_needed)
+        
